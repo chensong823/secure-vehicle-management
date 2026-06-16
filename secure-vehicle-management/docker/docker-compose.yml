@@ -1,0 +1,157 @@
+# Docker Compose for Secure Vehicle Management System
+version: '3.8'
+
+services:
+  # =========================================
+  # Infrastructure Services
+  # =========================================
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: svm_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_VHOST: /egen5202_host
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-egen5202}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-egen5202}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - vehicle_net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis-master:
+    image: redis:7-alpine
+    container_name: svm_redis_master
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-egen5202}
+    volumes:
+      - redis_master_data:/data
+    networks:
+      - vehicle_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-egen5202}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  redis-slave:
+    image: redis:7-alpine
+    container_name: svm_redis_slave
+    ports:
+      - "6380:6379"
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-egen5202}
+      --replicaof redis-master 6379
+    depends_on:
+      - redis-master
+    networks:
+      - vehicle_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-egen5202}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # =========================================
+  # Application Services
+  # =========================================
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.gateway
+    container_name: svm_gateway
+    ports:
+      - "10001:10001"
+    volumes:
+      - ../certs:/app/certs:ro
+      - ../logs:/app/logs
+      - ../configs:/app/configs
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-egen5202}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-egen5202}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - vehicle_net
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.server
+    container_name: svm_server
+    ports:
+      - "10021:10021"
+    volumes:
+      - ../logs:/app/logs
+      - ../configs:/app/configs
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-egen5202}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-egen5202}
+      REDIS_HOST: redis-master
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-egen5202}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+    networks:
+      - vehicle_net
+    deploy:
+      replicas: 2
+    restart: unless-stopped
+
+  monitor:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.monitor
+    container_name: svm_monitor
+    volumes:
+      - ../logs:/app/logs
+    depends_on:
+      - server
+    networks:
+      - vehicle_net
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.client
+    container_name: svm_client
+    environment:
+      GATEWAY_HOST: gateway
+    depends_on:
+      - gateway
+    networks:
+      - vehicle_net
+    stdin_open: true
+    tty: true
+    profiles:
+      - client
+
+# Networks
+networks:
+  vehicle_net:
+    driver: bridge
+
+# Volumes
+volumes:
+  rabbitmq_data:
+  redis_master_data:

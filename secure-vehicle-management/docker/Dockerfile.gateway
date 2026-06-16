@@ -1,0 +1,23 @@
+# Gateway Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code and configs
+COPY src/ ./src/
+COPY configs/ ./configs/
+
+# Create directories
+RUN mkdir -p logs certs
+
+# Environment
+ENV PYTHONUNBUFFERED=1
+ENV CONFIG_PATH=/app/configs/config.yaml
+
+EXPOSE 10001
+
+CMD ["python", "-m", "src.gateway"]

@@ -1,0 +1,73 @@
+# Secure Vehicle Management System Configuration
+# ==============================================
+
+app:
+  env: development
+  debug: false
+
+# Gateway Configuration
+gateway:
+  host: "0.0.0.0"
+  port: 10001
+  certfile: "certs/admin_cert.pem"
+  keyfile: "certs/admin_key.pem"
+  client_certfile: "certs/vehicle_a_cert.pem"
+  client_keyfile: "certs/vehicle_a_key.pem"
+  rsa_public_key: "certs/rsa_public_key.pem"
+  rsa_private_key: "certs/rsa_private_key.pem"
+
+# RabbitMQ Configuration
+rabbitmq:
+  host: "${RABBITMQ_HOST:-127.0.0.1}"
+  port: 5672
+  vhost: "/egen5202_host"
+  user: "${RABBITMQ_USER:-egen5202}"
+  passwd: "${RABBITMQ_PASS:-egen5202}"
+  exchange_name: "exchange_name"
+  routing_key: "routing_key"
+  queue_name: "egen5202"
+  heartbeat: 30
+
+# Redis Configuration
+redis:
+  host: "${REDIS_HOST:-127.0.0.1}"
+  port: 6379
+  backup_port: 6380
+  db: 0
+  password: "${REDIS_PASSWORD:-egen5202}"
+  socket_timeout: 5
+  socket_connect_timeout: 5
+
+# Monitor Configuration
+monitor:
+  log_file: "logs/health.log"
+  check_interval: 6
+  restart_command: "python -m src.server"
+
+# Server Configuration
+server:
+  host: "0.0.0.0"
+  port: 10021
+  health_log_file: "logs/health.log"
+  health_interval: 5
+
+# Client Configuration
+client:
+  host: "127.0.0.1"
+  port: 10011
+  gateway_host: "127.0.0.1"
+  gateway_port: 10001
+  node_id: "1"
+  location: "1125 Colonel By Dr, Ottawa"
+  certfile: "certs/vehicle_a_cert.pem"
+  keyfile: "certs/vehicle_a_key.pem"
+  admin_certfile: "certs/admin_cert.pem"
+  rsa_public_key: "certs/rsa_public_key.pem"
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/app.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5

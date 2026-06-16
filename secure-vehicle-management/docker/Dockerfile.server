@@ -1,0 +1,19 @@
+# Server Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src/
+COPY configs/ ./configs/
+
+RUN mkdir -p logs
+
+ENV PYTHONUNBUFFERED=1
+ENV CONFIG_PATH=/app/configs/config.yaml
+
+EXPOSE 10021
+
+CMD ["python", "-m", "src.server", "--host", "0.0.0.0", "--port", "10021"]

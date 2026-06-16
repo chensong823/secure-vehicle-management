@@ -1,0 +1,14 @@
+# Client Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src/
+COPY certs/ ./certs/
+
+ENV PYTHONUNBUFFERED=1
+
+CMD ["python", "-m", "src.client", "--node_name", "vehicle_a"]
